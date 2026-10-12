@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Description>miniaudio output of Xylocopadream.Audio for every platform (Windows, Linux, macOS), through SoundFlow: 10 ms periods for a short latency.</Description>
+    <PackageTags>audio;sound;miniaudio;soundflow;cross-platform;low-latency</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="SoundFlow" Version="1.4.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Xylocopadream.Audio\Xylocopadream.Audio.csproj" />
+  </ItemGroup>
+</Project>

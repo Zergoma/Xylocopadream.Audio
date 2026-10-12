@@ -1,0 +1,14 @@
+<Solution>
+  <Folder Name="/Solution Items/">
+    <File Path="Directory.Build.props" />
+    <File Path="README.md" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/Xylocopadream.Audio/Xylocopadream.Audio.csproj" />
+    <Project Path="src/Xylocopadream.Audio.MiniAudio/Xylocopadream.Audio.MiniAudio.csproj" />
+    <Project Path="src/Xylocopadream.Audio.Wasapi/Xylocopadream.Audio.Wasapi.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Xylocopadream.Audio.Tests/Xylocopadream.Audio.Tests.csproj" />
+  </Folder>
+</Solution>

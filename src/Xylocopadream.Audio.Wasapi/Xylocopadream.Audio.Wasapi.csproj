@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Description>WASAPI output of Xylocopadream.Audio for Windows (WPF, WinUI, MAUI on Windows, Avalonia): shared mode, event driven, 40 ms latency, through NAudio.</Description>
+    <PackageTags>audio;sound;wasapi;windows;naudio;low-latency</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="NAudio.Wasapi" Version="3.1.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Xylocopadream.Audio\Xylocopadream.Audio.csproj" />
+  </ItemGroup>
+</Project>
