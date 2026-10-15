@@ -11,8 +11,8 @@
     <Version>0.1.0</Version>
     <Authors>Xylocopadream</Authors>
     <Company>Xylocopadream</Company>
-    <RepositoryUrl>https://github.com/Zergoma/Xylocopadream.Audio</RepositoryUrl>
-    <PackageProjectUrl>https://github.com/Zergoma/Xylocopadream.Audio</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/Xylocopadream/Xylocopadream.Audio</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/Xylocopadream/Xylocopadream.Audio</PackageProjectUrl>
     <IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageReadmeFile>README.md</PackageReadmeFile>
