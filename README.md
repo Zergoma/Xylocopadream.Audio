@@ -14,6 +14,9 @@ never clipped at its start. The sounds are decoded once (WAV), resampled to the 
 
 ## Use
 
+The packages are published to the private GitHub Packages feed of the Xylocopadream organization
+(`https://nuget.pkg.github.com/Xylocopadream/index.json`), never to nuget.org.
+
 ```
 dotnet add package Xylocopadream.Audio.MiniAudio     # or Xylocopadream.Audio.Wasapi
 ```
@@ -56,7 +59,7 @@ stereo) on the audio thread until disposed.
 
 ```
 .\publish.ps1 -Bump                                           # local feed (%UserProfile%\nuget_local)
-$env:NUGET_API_KEY = '...'; .\publish.ps1 -Bump -NuGetOrg    # tests, then nuget.org
+.\publish.ps1 -GitHub                                         # tests, then GitHub Packages (token: GITHUB_PACKAGES_TOKEN)
 ```
 
 ## License

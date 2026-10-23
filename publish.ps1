@@ -1,43 +1,53 @@
 <#
 .SYNOPSIS
-    Packs every library under src/ into the local NuGet feed, and optionally pushes them to nuget.org.
+    Packs every library under src/ into the local NuGet feed, and optionally pushes them to the private feed of the
+    Xylocopadream organization on GitHub Packages. Never to nuget.org: the packages are not public.
 
 .DESCRIPTION
-    NuGet caches a package by id and version (%UserProfile%\.nuget\packages), and a version pushed to nuget.org
-    can never be replaced: publishing the same version twice would leave apps on a stale copy. The script therefore
+    NuGet caches a package by id and version (%UserProfile%\.nuget\packages), and a version pushed to a feed can
+    never be replaced: publishing the same version twice would leave apps on a stale copy. The script therefore
     refuses to pack a version already in the local feed; pass -Bump to increment the patch number of <Version>
     in Directory.Build.props first.
 
-    -NuGetOrg runs the tests, then pushes the packages of the version to nuget.org with the API key of the
-    NUGET_API_KEY environment variable (never stored in the repository). Without -Bump, it pushes the packages
-    already in the local feed: a push that failed can be run again (versions already on nuget.org are skipped).
+    -GitHub runs the tests, then pushes the packages of the version to https://nuget.pkg.github.com/Xylocopadream
+    with the classic token (scope write:packages) of the GITHUB_PACKAGES_TOKEN environment variable.
+    The token is never stored in the repository. Without -Bump, -GitHub pushes the packages already in the local
+    feed: a push that failed can be run again (versions already in the feed are skipped).
 
 .EXAMPLE
     .\publish.ps1 -Bump
 
 .EXAMPLE
-    $env:NUGET_API_KEY = '...'; .\publish.ps1 -Bump -NuGetOrg
+    .\publish.ps1 -GitHub          # the version of Directory.Build.props, to the local feed and GitHub Packages
 #>
 param(
     [switch] $Bump,
-    [switch] $NuGetOrg,
+    [switch] $GitHub,
     [string] $Feed = (Join-Path $env:USERPROFILE 'nuget_local')
 )
 
 $ErrorActionPreference = 'Stop'
-$nuGetOrgSource = 'https://api.nuget.org/v3/index.json'
 
-# checked first: nothing is bumped nor packed when the push cannot happen
-if ($NuGetOrg -and [string]::IsNullOrWhiteSpace($env:NUGET_API_KEY)) {
-    throw 'Set the NUGET_API_KEY environment variable to push to nuget.org.'
+# the remote feeds asked for, each with the environment variable of its key
+$targets = @()
+if ($GitHub) {
+    # GitHub Packages takes no symbol package (.snupkg)
+    $targets += [pscustomobject]@{ Name = 'GitHub Packages'; Source = 'https://nuget.pkg.github.com/Xylocopadream/index.json'; KeyVariable = 'GITHUB_PACKAGES_TOKEN'; PushArgs = @('--no-symbols') }
 }
 
-# a package links to the commit it was built from: on nuget.org it must be the code that was committed
+# checked first: nothing is bumped nor packed when a push cannot happen
+foreach ($target in $targets) {
+    if ([string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable($target.KeyVariable))) {
+        throw "Set the $($target.KeyVariable) environment variable to push to $($target.Name)."
+    }
+}
+
+# a package links to the commit it was built from: a pushed package must be the code that was committed
 # (the version bump of Directory.Build.props is the only change allowed, it is committed afterwards)
-if ($NuGetOrg) {
+if ($targets.Count -gt 0) {
     $changes = @(git -C $PSScriptRoot status --porcelain) | Where-Object { $_ -notmatch 'Directory\.Build\.props$' }
     if ($changes.Count -gt 0) {
-        throw "Commit the changes first, a package on nuget.org must match a commit:`n$($changes -join "`n")"
+        throw "Commit the changes first, a pushed package must match a commit:`n$($changes -join "`n")"
     }
 }
 
@@ -65,41 +75,50 @@ function Get-Packages($project) {
 }
 
 $packed = @($projects | Where-Object { (Get-Packages $_).Count -gt 0 })
-$pushExisting = $NuGetOrg -and -not $Bump -and $packed.Count -eq $projects.Count
+$pushExisting = $targets.Count -gt 0 -and -not $Bump -and $packed.Count -eq $projects.Count
 
 if (-not $pushExisting) {
     if ($packed.Count -gt 0) {
         throw "Version $version is already in $Feed. Run .\publish.ps1 -Bump to publish a new version."
     }
 
-    if ($NuGetOrg) {
-        dotnet test (Join-Path $PSScriptRoot 'Xylocopadream.Audio.slnx') -c Release --nologo
-        if ($LASTEXITCODE -ne 0) {
-            throw 'Tests failed: nothing is published.'
+    # dotnet picks its SDK from the global.json of the current directory: the one of this repository, wherever the
+    # script is run from
+    Push-Location $PSScriptRoot
+    try {
+        if ($targets.Count -gt 0) {
+            dotnet test (Join-Path $PSScriptRoot 'Xylocopadream.Audio.slnx') -c Release --nologo
+            if ($LASTEXITCODE -ne 0) {
+                throw 'Tests failed: nothing is published.'
+            }
+        }
+
+        New-Item -ItemType Directory -Force $Feed | Out-Null
+        foreach ($project in $projects) {
+            # deterministic build: source paths mapped to the repository, so debugging steps into the published code
+            dotnet pack $project.FullName -c Release -o $Feed --nologo -p:ContinuousIntegrationBuild=true
+            if ($LASTEXITCODE -ne 0) {
+                throw "dotnet pack failed for $($project.Name)."
+            }
         }
     }
-
-    New-Item -ItemType Directory -Force $Feed | Out-Null
-    foreach ($project in $projects) {
-        # deterministic build: source paths mapped to the repository, so debugging steps into the published code
-        dotnet pack $project.FullName -c Release -o $Feed --nologo -p:ContinuousIntegrationBuild=true
-        if ($LASTEXITCODE -ne 0) {
-            throw "dotnet pack failed for $($project.Name)."
-        }
+    finally {
+        Pop-Location
     }
 
     Write-Host "Published $version to $Feed"
 }
 
-if ($NuGetOrg) {
+foreach ($target in $targets) {
+    $key = [Environment]::GetEnvironmentVariable($target.KeyVariable)
     foreach ($project in $projects) {
         foreach ($package in Get-Packages $project) {
-            dotnet nuget push $package.FullName --api-key $env:NUGET_API_KEY --source $nuGetOrgSource --skip-duplicate
+            dotnet nuget push $package.FullName --api-key $key --source $target.Source --skip-duplicate @($target.PushArgs)
             if ($LASTEXITCODE -ne 0) {
-                throw "Push to nuget.org failed for $($package.Name)."
+                throw "Push to $($target.Name) failed for $($package.Name)."
             }
         }
     }
 
-    Write-Host "Pushed $version to nuget.org (validation and indexing take a few minutes)"
+    Write-Host "Pushed $version to $($target.Name)"
 }
